@@ -39,14 +39,21 @@ class PlatformManager:
 
     def __init__(self, group: pygame.sprite.Group):
         self.group = group
+        self.last_platform_center = settings.WIDTH // 2
 
     def create_platform(self, y: int, difficulty: float) -> Platform:
         width = random.randint(*settings.PLATFORM_WIDTH_RANGE)
-        x = random.randint(0, settings.WIDTH - width)
+        half_gap = settings.MAX_PLATFORM_HORIZONTAL_GAP
+        min_x = max(0, int(self.last_platform_center - half_gap))
+        max_x = min(settings.WIDTH - width, int(self.last_platform_center + half_gap))
+        if min_x > max_x:
+            min_x, max_x = 0, settings.WIDTH - width
+        x = random.randint(min_x, max_x)
         moving = random.random() < settings.MOVING_PLATFORM_CHANCE * difficulty
         speed = random.uniform(1.5, 3.5) * difficulty if moving else 0
         platform = Platform(x, y, width, moving=moving, speed=speed)
         self.group.add(platform)
+        self.last_platform_center = platform.rect.centerx
         return platform
 
     def cleanup(self, camera_offset: float):

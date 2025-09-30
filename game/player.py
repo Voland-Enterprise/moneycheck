@@ -18,8 +18,7 @@ class Player(pygame.sprite.Sprite):
 
     def __init__(self, platforms: pygame.sprite.Group, bonuses: pygame.sprite.Group):
         super().__init__()
-        self.image = pygame.Surface((50, 50), pygame.SRCALPHA)
-        self.image.fill((255, 255, 0))
+        self.image = self.create_sprite()
         self.rect = self.image.get_rect(midbottom=(settings.WIDTH // 2, settings.HEIGHT - 150))
         self.velocity = pygame.math.Vector2(0, 0)
         self.state = PlayerState()
@@ -85,3 +84,35 @@ class Player(pygame.sprite.Sprite):
 
     def shift(self, dy: float):
         self.rect.y += dy
+
+    def create_sprite(self) -> pygame.Surface:
+        """Create a cute astro-cat sprite using primitive shapes."""
+        surface = pygame.Surface((56, 64), pygame.SRCALPHA)
+        body_color = (240, 240, 255)
+        suit_color = (135, 206, 250)
+        visor_color = (180, 220, 255)
+        cat_color = (255, 200, 160)
+
+        # Space suit body
+        pygame.draw.rect(surface, body_color, pygame.Rect(14, 20, 28, 34), border_radius=10)
+        pygame.draw.rect(surface, suit_color, pygame.Rect(18, 38, 20, 14), border_radius=6)
+        # Helmet
+        pygame.draw.circle(surface, body_color, (28, 24), 22)
+        pygame.draw.circle(surface, visor_color, (28, 24), 18)
+
+        # Cat ears
+        pygame.draw.polygon(surface, cat_color, [(18, 6), (10, 20), (20, 16)])
+        pygame.draw.polygon(surface, cat_color, [(38, 6), (36, 16), (46, 20)])
+
+        # Cat face inside helmet
+        pygame.draw.circle(surface, cat_color, (28, 26), 12)
+        pygame.draw.circle(surface, (80, 50, 40), (24, 24), 2)
+        pygame.draw.circle(surface, (80, 50, 40), (32, 24), 2)
+        pygame.draw.polygon(surface, (120, 70, 60), [(28, 28), (26, 32), (30, 32)])
+        pygame.draw.arc(surface, (90, 60, 50), pygame.Rect(22, 28, 12, 10), 0.2, 2.9, 2)
+
+        # Jetpack accent
+        pygame.draw.rect(surface, suit_color, pygame.Rect(12, 34, 6, 12), border_radius=3)
+        pygame.draw.rect(surface, suit_color, pygame.Rect(38, 34, 6, 12), border_radius=3)
+
+        return surface

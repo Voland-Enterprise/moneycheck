@@ -60,6 +60,8 @@ class Game:
         self.highscore = self.load_highscore()
         self.score = 0
         self.best_score = self.highscore
+        self.stars = self.create_starfield()
+        self.planets = self.create_planets()
         self.start_button = Button("Начать игру", (settings.WIDTH // 2, settings.HEIGHT // 2), self.font_medium)
         self.retry_button = Button("Попробовать снова", (settings.WIDTH // 2, settings.HEIGHT // 2 + 120), self.font_medium)
         self.generate_initial_platforms()
@@ -88,11 +90,14 @@ class Game:
         self.all_sprites.add(self.player)
         self.camera_offset = 0.0
         self.score = 0
+        self.stars = self.create_starfield()
+        self.planets = self.create_planets()
         self.generate_initial_platforms()
 
     def generate_initial_platforms(self):
         base = Platform(settings.WIDTH // 2 - 80, settings.HEIGHT - 50, 160)
         self.platforms.add(base)
+        self.platform_manager.last_platform_center = base.rect.centerx
         y = settings.HEIGHT - 150
         while y > -settings.HEIGHT:
             difficulty = self.difficulty_factor(y)
@@ -177,11 +182,10 @@ class Game:
     def spawn_platforms(self):
         highest_platform_y = min((p.rect.top for p in self.platforms), default=settings.HEIGHT)
         while highest_platform_y > -settings.HEIGHT:
-            difficulty = self.difficulty_factor(highest_platform_y)
-            platform = self.platform_manager.create_platform(
-                highest_platform_y - random.randint(settings.PLATFORM_MIN_Y_GAP, settings.PLATFORM_MAX_Y_GAP),
-                difficulty,
-            )
+            gap = random.randint(settings.PLATFORM_MIN_Y_GAP, settings.PLATFORM_MAX_Y_GAP)
+            spawn_y = highest_platform_y - gap
+            difficulty = self.difficulty_factor(spawn_y)
+            platform = self.platform_manager.create_platform(spawn_y, difficulty)
             highest_platform_y = platform.rect.top
             if random.random() < settings.BONUS_CHANCE:
                 bonus = Bonus(platform.rect.centerx, platform.rect.top)
@@ -201,11 +205,13 @@ class Game:
             self.platform_manager.shift(diff)
             for bonus in self.bonuses:
                 bonus.shift(diff)
-            self.score = max(self.score, -self.camera_offset)
+            height_climbed = max(0, -self.camera_offset)
+            blocks = int(height_climbed // settings.SCORE_BLOCK_HEIGHT)
+            self.score = max(self.score, blocks * settings.SCORE_PER_BLOCK)
             self.best_score = max(self.best_score, self.score, self.highscore)
 
     def check_game_over(self):
-        if self.player.rect.top - self.camera_offset > settings.HEIGHT:
+        if self.player.rect.top + self.camera_offset > settings.HEIGHT:
             self.state = "game_over"
             if self.score > self.highscore:
                 self.best_score = self.score
@@ -231,6 +237,8 @@ class Game:
             b = int(settings.SKY_TOP[2] * (1 - t) + settings.SKY_BOTTOM[2] * t)
             pygame.draw.line(gradient, (r, g, b), (0, y), (settings.WIDTH, y))
         self.screen.blit(gradient, (0, 0))
+        self.draw_starfield(offset)
+        self.draw_planets(offset)
 
     def draw_ui(self):
         score_text = self.font_small.render(f"Высота: {self.score:.0f}", True, settings.WHITE)
@@ -247,4 +255,63 @@ class Game:
         # Difficulty increases with height achieved
         height = max(0, -y + self.camera_offset)
         return 1.0 + height / 3000
+
+    # -------------------- Background helpers --------------------
+    def create_starfield(self):
+        stars = []
+        for _ in range(90):
+            star = {
+                "x": random.randint(0, settings.WIDTH),
+                "y": random.uniform(0, settings.HEIGHT * 6),
+                "size": random.randint(1, 3),
+                "parallax": random.uniform(0.2, 0.6),
+                "color": random.choice(settings.STAR_COLORS),
+            }
+            stars.append(star)
+        return stars
+
+    def create_planets(self):
+        planets = []
+        for _ in range(4):
+            radius = random.randint(18, 42)
+            planets.append(
+                {
+                    "x": random.randint(radius, settings.WIDTH - radius),
+                    "y": random.uniform(0, settings.HEIGHT * 5),
+                    "radius": radius,
+                    "parallax": random.uniform(0.05, 0.25),
+                    "color": random.choice(settings.PLANET_COLORS),
+                    "ring": random.choice([True, False]),
+                }
+            )
+        return planets
+
+    def draw_starfield(self, offset: float):
+        for star in self.stars:
+            screen_y = star["y"] - offset * star["parallax"]
+            while screen_y < -star["size"]:
+                screen_y += settings.HEIGHT * 6
+            while screen_y > settings.HEIGHT:
+                screen_y -= settings.HEIGHT * 6
+            pygame.draw.circle(
+                self.screen,
+                star["color"],
+                (int(star["x"]), int(screen_y)),
+                star["size"],
+            )
+
+    def draw_planets(self, offset: float):
+        for planet in self.planets:
+            screen_y = planet["y"] - offset * planet["parallax"]
+            height_range = settings.HEIGHT * 5
+            while screen_y < -planet["radius"] * 2:
+                screen_y += height_range
+            while screen_y > settings.HEIGHT + planet["radius"]:
+                screen_y -= height_range
+            center = (int(planet["x"]), int(screen_y))
+            pygame.draw.circle(self.screen, planet["color"], center, planet["radius"])
+            if planet["ring"]:
+                ring_rect = pygame.Rect(0, 0, planet["radius"] * 2, planet["radius"] // 2)
+                ring_rect.center = center
+                pygame.draw.ellipse(self.screen, (245, 245, 245), ring_rect, width=2)
 
