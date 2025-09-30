@@ -1,0 +1,37 @@
+import os
+
+# Screen settings
+WIDTH = 600
+HEIGHT = 800
+FPS = 60
+
+# Gameplay tuning
+GRAVITY = 0.5
+PLAYER_MOVE_SPEED = 6
+PLAYER_JUMP_SPEED = -12
+SUPER_JUMP_SPEED = -18
+ROCKET_BOOST_SPEED = -22
+ROCKET_DURATION = FPS * 2  # 2 seconds of rocket power
+
+PLATFORM_WIDTH_RANGE = (70, 140)
+PLATFORM_HEIGHT = 20
+PLATFORM_GAP = 120
+PLATFORM_MIN_Y_GAP = 90
+PLATFORM_MAX_Y_GAP = 160
+MOVING_PLATFORM_CHANCE = 0.2
+BONUS_CHANCE = 0.15
+SPRING_CHANCE = 0.7  # Otherwise rocket
+
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+LIGHT_GREY = (200, 200, 200)
+DARK_GREY = (40, 40, 40)
+SKY_TOP = (25, 25, 112)
+SKY_BOTTOM = (135, 206, 235)
+BUTTON_COLOR = (80, 170, 255)
+BUTTON_HOVER_COLOR = (120, 200, 255)
+
+# Assets path
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+HIGHSCORE_FILE = os.path.join(BASE_DIR, "highscore.txt")
