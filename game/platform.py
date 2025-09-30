@@ -57,9 +57,14 @@ class PlatformManager:
         return platform
 
     def cleanup(self, camera_offset: float):
-        """Remove platforms that are far below the visible area."""
+        """Remove platforms that fall well below the camera window."""
+        # Sprites are physically shifted with the camera, so we only need to
+        # examine their on-screen position. Relying on the camera offset caused
+        # platforms above the player to be culled once the offset grew large,
+        # leaving the level empty. Using the actual sprite position keeps the
+        # cleanup robust regardless of how far the player has climbed.
         for platform in list(self.group):
-            if platform.rect.top - camera_offset > settings.HEIGHT + settings.PLATFORM_GAP:
+            if platform.rect.top > settings.HEIGHT + settings.PLATFORM_GAP:
                 platform.kill()
 
     def shift(self, dy: float):

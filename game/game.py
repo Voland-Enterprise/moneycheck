@@ -192,7 +192,7 @@ class Game:
                 self.bonuses.add(bonus)
 
         for bonus in list(self.bonuses):
-            if bonus.rect.top - self.camera_offset > settings.HEIGHT + settings.PLATFORM_GAP:
+            if bonus.rect.top > settings.HEIGHT + settings.PLATFORM_GAP:
                 bonus.kill()
 
     def update_camera(self):
