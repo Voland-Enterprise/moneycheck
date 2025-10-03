@@ -64,6 +64,11 @@ class Game:
         self.planets = self.create_planets()
         self.start_button = Button("Начать игру", (settings.WIDTH // 2, settings.HEIGHT // 2), self.font_medium)
         self.retry_button = Button("Попробовать снова", (settings.WIDTH // 2, settings.HEIGHT // 2 + 120), self.font_medium)
+        pause_y = settings.HEIGHT // 2
+        self.pause_menu_button = Button("Меню", (settings.WIDTH // 2, pause_y - 90), self.font_medium)
+        self.pause_restart_button = Button("Начать заново", (settings.WIDTH // 2, pause_y), self.font_medium)
+        self.pause_resume_button = Button("Продолжить", (settings.WIDTH // 2, pause_y + 90), self.font_medium)
+        self.pause_overlay = pygame.Surface((settings.WIDTH, settings.HEIGHT), pygame.SRCALPHA)
         self.generate_initial_platforms()
 
     def load_highscore(self) -> int:
@@ -116,6 +121,8 @@ class Game:
                 self.game_loop()
             elif self.state == "game_over":
                 self.game_over_screen()
+            elif self.state == "paused":
+                self.pause_screen()
         pygame.quit()
 
     def start_screen(self):
@@ -145,6 +152,12 @@ class Game:
                 return
             if event.type == pygame.KEYDOWN and event.key in (pygame.K_w, pygame.K_UP):
                 self.player.jump()
+            if event.type == pygame.KEYDOWN and event.key in (pygame.K_ESCAPE, pygame.K_p):
+                self.state = "paused"
+                return
+
+        if self.state != "running":
+            return
 
         self.update_sprites(dt)
         self.update_camera()
@@ -169,6 +182,45 @@ class Game:
         self.screen.blit(score_text, score_text.get_rect(center=(settings.WIDTH // 2, 280)))
         self.screen.blit(best_text, best_text.get_rect(center=(settings.WIDTH // 2, 330)))
         self.retry_button.draw(self.screen)
+        pygame.display.flip()
+        self.clock.tick(settings.FPS)
+
+    def pause_screen(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                return
+            if event.type == pygame.KEYDOWN and event.key in (pygame.K_ESCAPE, pygame.K_p):
+                self.state = "running"
+                return
+            if self.pause_menu_button.is_clicked(event):
+                self.reset()
+                self.state = "start"
+                return
+            if self.pause_restart_button.is_clicked(event):
+                self.reset()
+                self.state = "running"
+                return
+            if self.pause_resume_button.is_clicked(event):
+                self.state = "running"
+                return
+
+        self.draw_background(self.camera_offset)
+        self.platforms.draw(self.screen)
+        self.bonuses.draw(self.screen)
+        self.all_sprites.draw(self.screen)
+        self.draw_ui()
+
+        self.pause_overlay.fill((0, 0, 0, 160))
+        self.screen.blit(self.pause_overlay, (0, 0))
+
+        title = self.font_large.render("Пауза", True, settings.WHITE)
+        self.screen.blit(title, title.get_rect(center=(settings.WIDTH // 2, settings.HEIGHT // 2 - 180)))
+
+        self.pause_menu_button.draw(self.screen)
+        self.pause_restart_button.draw(self.screen)
+        self.pause_resume_button.draw(self.screen)
+
         pygame.display.flip()
         self.clock.tick(settings.FPS)
 
