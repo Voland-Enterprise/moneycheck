@@ -9,6 +9,7 @@ from . import settings
 from .bonus import Bonus
 from .platform import Platform, PlatformManager
 from .player import Player
+from .skins import SKINS
 
 
 class Button:
@@ -50,11 +51,17 @@ class Game:
         self.font_medium = pygame.font.SysFont("arial", 32)
         self.font_small = pygame.font.SysFont("arial", 24)
 
+        self.skins = SKINS
+        self.skin_index = 0
+        self.skin_previews = [
+            pygame.transform.smoothscale(skin.create_surface(), (72, 82)) for skin in self.skins
+        ]
+
         self.all_sprites = pygame.sprite.Group()
         self.platforms = pygame.sprite.Group()
         self.bonuses = pygame.sprite.Group()
         self.platform_manager = PlatformManager(self.platforms)
-        self.player = Player(self.platforms, self.bonuses)
+        self.player = Player(self.platforms, self.bonuses, self.skins[self.skin_index])
         self.all_sprites.add(self.player)
         self.camera_offset = 0.0
         self.highscore = self.load_highscore()
@@ -62,14 +69,19 @@ class Game:
         self.best_score = self.highscore
         self.stars = self.create_starfield()
         self.planets = self.create_planets()
-        self.start_button = Button("Начать игру", (settings.WIDTH // 2, settings.HEIGHT // 2), self.font_medium)
+        self.start_button = Button(
+            "Начать игру", (settings.WIDTH // 2, settings.HEIGHT // 2 + 60), self.font_medium
+        )
+        self.skins_button = Button("Skins", (settings.WIDTH // 2, settings.HEIGHT // 2 + 150), self.font_medium)
         self.retry_button = Button("Попробовать снова", (settings.WIDTH // 2, settings.HEIGHT // 2 + 120), self.font_medium)
         pause_y = settings.HEIGHT // 2
         self.pause_menu_button = Button("Меню", (settings.WIDTH // 2, pause_y - 90), self.font_medium)
         self.pause_restart_button = Button("Начать заново", (settings.WIDTH // 2, pause_y), self.font_medium)
         self.pause_resume_button = Button("Продолжить", (settings.WIDTH // 2, pause_y + 90), self.font_medium)
         self.pause_overlay = pygame.Surface((settings.WIDTH, settings.HEIGHT), pygame.SRCALPHA)
+        self.skins_back_button = Button("Назад", (settings.WIDTH // 2, settings.HEIGHT - 80), self.font_medium)
         self.generate_initial_platforms()
+        self.start_height = self.player.rect.top + self.camera_offset
 
     def load_highscore(self) -> int:
         try:
@@ -91,13 +103,14 @@ class Game:
         self.platforms.empty()
         self.bonuses.empty()
         self.platform_manager = PlatformManager(self.platforms)
-        self.player = Player(self.platforms, self.bonuses)
+        self.player = Player(self.platforms, self.bonuses, self.skins[self.skin_index])
         self.all_sprites.add(self.player)
         self.camera_offset = 0.0
         self.score = 0
         self.stars = self.create_starfield()
         self.planets = self.create_planets()
         self.generate_initial_platforms()
+        self.start_height = self.player.rect.top + self.camera_offset
 
     def generate_initial_platforms(self):
         base = Platform(settings.WIDTH // 2 - 80, settings.HEIGHT - 50, 160)
@@ -123,6 +136,8 @@ class Game:
                 self.game_over_screen()
             elif self.state == "paused":
                 self.pause_screen()
+            elif self.state == "skins":
+                self.skins_screen()
         pygame.quit()
 
     def start_screen(self):
@@ -133,13 +148,30 @@ class Game:
             if self.start_button.is_clicked(event):
                 self.reset()
                 self.state = "running"
+                return
+            if self.skins_button.is_clicked(event):
+                self.state = "skins"
+                return
 
         self.draw_background(0)
         title_text = self.font_large.render("Sky Jumper", True, settings.WHITE)
-        subtitle = self.font_small.render("Используйте A/D или ←/→ для движения, W или ↑ для прыжка", True, settings.WHITE)
+        subtitle = self.font_small.render(
+            "Используйте A/D или ←/→ для движения, W или ↑ для прыжка", True, settings.WHITE
+        )
         self.screen.blit(title_text, title_text.get_rect(center=(settings.WIDTH // 2, 200)))
         self.screen.blit(subtitle, subtitle.get_rect(center=(settings.WIDTH // 2, 260)))
+
+        preview = self.skin_previews[self.skin_index]
+        preview_rect = preview.get_rect(center=(settings.WIDTH // 2, settings.HEIGHT // 2 - 40))
+        frame_rect = preview_rect.inflate(40, 40)
+        pygame.draw.rect(self.screen, (40, 60, 120), frame_rect, border_radius=16)
+        pygame.draw.rect(self.screen, settings.WHITE, frame_rect, width=2, border_radius=16)
+        self.screen.blit(preview, preview_rect)
+        skin_name = self.font_small.render(self.skins[self.skin_index].name, True, settings.WHITE)
+        self.screen.blit(skin_name, skin_name.get_rect(center=(settings.WIDTH // 2, frame_rect.bottom - 10)))
+
         self.start_button.draw(self.screen)
+        self.skins_button.draw(self.screen)
         self.draw_highscore_text()
         pygame.display.flip()
         self.clock.tick(settings.FPS)
@@ -224,6 +256,85 @@ class Game:
         pygame.display.flip()
         self.clock.tick(settings.FPS)
 
+    def skins_screen(self):
+        rects = self._skin_slot_rects()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                return
+            if event.type == pygame.KEYDOWN and event.key in (pygame.K_ESCAPE, pygame.K_BACKSPACE):
+                self.state = "start"
+                return
+            if self.skins_back_button.is_clicked(event):
+                self.state = "start"
+                return
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                for index, rect in enumerate(rects):
+                    if rect.collidepoint(event.pos):
+                        self.set_skin(index)
+                        return
+
+        self.draw_background(0)
+        title = self.font_large.render("Skins", True, settings.WHITE)
+        self.screen.blit(title, title.get_rect(center=(settings.WIDTH // 2, 100)))
+        info = self.font_small.render("Выберите героя", True, settings.WHITE)
+        self.screen.blit(info, info.get_rect(center=(settings.WIDTH // 2, 140)))
+
+        for index, rect in enumerate(rects):
+            selected = index == self.skin_index
+            pygame.draw.rect(self.screen, (30, 45, 90), rect, border_radius=12)
+            pygame.draw.rect(
+                self.screen,
+                settings.WHITE if selected else settings.LIGHT_GREY,
+                rect,
+                width=3 if selected else 1,
+                border_radius=12,
+            )
+            preview = self.skin_previews[index]
+            preview_rect = preview.get_rect(center=(rect.centerx, rect.top + 60))
+            self.screen.blit(preview, preview_rect)
+            name_surface = self.font_small.render(self.skins[index].name, True, settings.WHITE)
+            name_rect = name_surface.get_rect(center=(rect.centerx, rect.bottom - 18))
+            if name_rect.width > rect.width - 12:
+                scale = (rect.width - 12) / name_rect.width
+                scaled_surface = pygame.transform.smoothscale(
+                    name_surface,
+                    (max(1, int(name_rect.width * scale)), max(1, int(name_rect.height * scale))),
+                )
+                name_surface = scaled_surface
+                name_rect = name_surface.get_rect(center=(rect.centerx, rect.bottom - 18))
+            self.screen.blit(name_surface, name_rect)
+
+        self.skins_back_button.draw(self.screen)
+        pygame.display.flip()
+        self.clock.tick(settings.FPS)
+
+    def set_skin(self, index: int):
+        if not self.skins:
+            return
+        index = max(0, min(index, len(self.skins) - 1))
+        if index == self.skin_index:
+            return
+        self.skin_index = index
+        self.player.apply_skin(self.skins[self.skin_index])
+
+    def _skin_slot_rects(self) -> list[pygame.Rect]:
+        cols = 5
+        slot_w, slot_h = 100, 120
+        h_gap, v_gap = 18, 22
+        total_width = cols * slot_w + (cols - 1) * h_gap
+        start_x = (settings.WIDTH - total_width) // 2
+        start_y = 160
+        rects: list[pygame.Rect] = []
+        for index in range(len(self.skins)):
+            row = index // cols
+            col = index % cols
+            x = start_x + col * (slot_w + h_gap)
+            y = start_y + row * (slot_h + v_gap)
+            rects.append(pygame.Rect(x, y, slot_w, slot_h))
+        return rects
+
     # -------------------- Update methods --------------------
     def update_sprites(self, dt: float):
         self.all_sprites.update(dt)
@@ -257,10 +368,7 @@ class Game:
             self.platform_manager.shift(diff)
             for bonus in self.bonuses:
                 bonus.shift(diff)
-            height_climbed = max(0, -self.camera_offset)
-            blocks = int(height_climbed // settings.SCORE_BLOCK_HEIGHT)
-            self.score = max(self.score, blocks * settings.SCORE_PER_BLOCK)
-            self.best_score = max(self.best_score, self.score, self.highscore)
+        self.update_score()
 
     def check_game_over(self):
         if self.player.rect.top + self.camera_offset > settings.HEIGHT:
@@ -269,6 +377,18 @@ class Game:
                 self.best_score = self.score
                 self.highscore = self.best_score
                 self.save_highscore()
+
+    def update_score(self):
+        world_top = self.player.rect.top + self.camera_offset
+        height_climbed = self.start_height - world_top
+        if height_climbed <= 0:
+            return
+        blocks = int(height_climbed // settings.SCORE_BLOCK_HEIGHT)
+        new_score = blocks * settings.SCORE_PER_BLOCK
+        if new_score > self.score:
+            self.score = new_score
+            if self.score > self.best_score:
+                self.best_score = self.score
 
     # -------------------- Drawing methods --------------------
     def draw(self):

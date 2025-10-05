@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
 
 import pygame
 
 from . import settings
+from .skins import Skin
 
 
 @dataclass
@@ -16,9 +18,15 @@ class PlayerState:
 class Player(pygame.sprite.Sprite):
     """Main controllable character."""
 
-    def __init__(self, platforms: pygame.sprite.Group, bonuses: pygame.sprite.Group):
+    def __init__(
+        self,
+        platforms: pygame.sprite.Group,
+        bonuses: pygame.sprite.Group,
+        skin: Optional[Skin] = None,
+    ):
         super().__init__()
-        self.image = self.create_sprite()
+        self.skin = skin
+        self.image = self.render_skin()
         self.rect = self.image.get_rect(midbottom=(settings.WIDTH // 2, settings.HEIGHT - 150))
         self.velocity = pygame.math.Vector2(0, 0)
         self.state = PlayerState()
@@ -85,7 +93,19 @@ class Player(pygame.sprite.Sprite):
     def shift(self, dy: float):
         self.rect.y += dy
 
-    def create_sprite(self) -> pygame.Surface:
+    def render_skin(self) -> pygame.Surface:
+        if self.skin:
+            return self.skin.create_surface()
+        return self.create_default_sprite()
+
+    def apply_skin(self, skin: Skin):
+        """Update the player's appearance while preserving position."""
+        self.skin = skin
+        midbottom = self.rect.midbottom
+        self.image = self.render_skin()
+        self.rect = self.image.get_rect(midbottom=midbottom)
+
+    def create_default_sprite(self) -> pygame.Surface:
         """Create a cute astro-cat sprite using primitive shapes."""
         surface = pygame.Surface((56, 64), pygame.SRCALPHA)
         body_color = (240, 240, 255)
